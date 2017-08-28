@@ -1,6 +1,3 @@
-/*
-@author Tirthankar Sarkar
-*/
 #include<graphics.h>
 #include<conio.h>
 #include<stdio.h>
@@ -42,12 +39,18 @@
 #define OFF 0
 #define ON 1
 
+/* Symbolic Constants for checking box algorithms.*/
+#define ULD 1
+#define DLU 2
+#define RUL 3
+#define LUR 4
+
 /*       For a 5x8 grid    */
 char HORIZ_LINE[5][7];
 char VERT_LINE[4][8];
 char BOX[4][7];
 
-int SCORE_1,SCORE_2;
+int SCORE_1,SCORE_2,ODD_STAT_X=-100,ODD_STAT_Y=-100;
 
 /* ...............................Function Prototypes......................*/
 void Initiate_Game(void);
@@ -57,10 +60,15 @@ void Draw_Vertices(void);
 int Check_For_Box(int,int,int,char);
 int Check_Win(void);
 void End_Game(void);
-void SHOW_CURRENT_POS(int,int,int);
+void SHOW_CURRENT_POS(int,int,int,int);
 void HIDE_PREV_POS(int,int);
 void Highlight_Selected_Vertex(int,int,int);
 void Draw_Line(int,int,int,int,int);
+void Show_Score(void);
+void Whose_Turn(int);
+void Show_Box(int,int,int,int,int);
+void Box_Sound(int);
+int Check_Vertex_For_X1_Y1(int,int);
 
 int main()
 {
@@ -108,6 +116,7 @@ void Initiate_Game(void)
     Play_Area();
     char LINE_ALIGN;
     int flag,stat,scancode,Enter_Stat,Game_Stat,PLAYER,IS_BOX,Player_Color;
+    int Check_X1_Y1;
     int X1=100,Y1=100,X2,Y2,CURRENT_X,CURRENT_Y;
     int Diff_X,Diff_Y,dx,dy;
     int small_X,small_Y,i,j;
@@ -122,8 +131,11 @@ void Initiate_Game(void)
 	if(PLAYER==1) Player_Color=GREEN;
 	else Player_Color=BROWN;
 
-	SHOW_CURRENT_POS(CURRENT_X,CURRENT_Y,Player_Color);
+	SHOW_CURRENT_POS(CURRENT_X,CURRENT_Y,Player_Color,Check_X1_Y1);
 	setcolor(WHITE);
+
+	Show_Score();
+	Whose_Turn(PLAYER);
 
 	scancode=getkey();
 	switch(scancode)
@@ -148,9 +160,17 @@ void Initiate_Game(void)
 			  else if(Enter_Stat==ODD) Enter_Stat=EVEN;
 			switch(Enter_Stat)
 			{
-			    case ODD: X1=CURRENT_X;
-				      Y1=CURRENT_Y;
-				      Highlight_Selected_Vertex(X1,Y1,Player_Color);
+			    case ODD: X1=ODD_STAT_X=CURRENT_X;
+				      Y1=ODD_STAT_Y=CURRENT_Y;
+				      Check_X1_Y1=Check_Vertex_For_X1_Y1(X1,Y1);
+				      if(Check_X1_Y1==OFF)
+				      {
+					 Highlight_Selected_Vertex(X1,Y1,Player_Color);
+					 sound(800);
+					 delay(50);
+					 nosound();
+				      }
+				      else Enter_Stat=EVEN;
 				      break;
 
 			    case EVEN: X2=CURRENT_X;
@@ -173,6 +193,9 @@ void Initiate_Game(void)
 				       if(Diff_X<=50 && Diff_Y<=50 &&
 					      Diff_X!=Diff_Y)
 				       {
+					  sound(800);
+					  delay(50);
+					  nosound();
 					  /*determine whether Horizontal or
 					    vertical line was drawn*/
 					  if(Diff_X!=0)
@@ -234,6 +257,15 @@ void Initiate_Game(void)
 						else if(PLAYER==2) PLAYER=1;
 					    }
 				       }
+				       else if(Diff_X==0 && Diff_Y==0)
+					    {
+						Enter_Stat=EVEN;
+						Check_X1_Y1=ON;
+						sound(800);
+						delay(50);
+						nosound();
+					    }
+
 				       else Enter_Stat=ODD;
 				       break;
 			}
@@ -249,11 +281,12 @@ void Initiate_Game(void)
 
 int Check_For_Box(int X,int Y,int PL,char L_A)
 {
-     int x,y,i,j,flag=OFF,Is_Box=OFF;
+     int x,y,i,j,flag=OFF,Is_Box=OFF,ALGO;
 
      if(L_A==HORIZONTAL)// apply algos ULD & DLU
      {
 	  //---------------------ALGO__ULD-----------------------
+		  ALGO=ULD;
 		  y=Y-50;
 		  i=(Y-100)/50;
 		  j=(X-100)/50;
@@ -277,9 +310,12 @@ int Check_For_Box(int X,int Y,int PL,char L_A)
 			  Is_Box=ON;
 			  if(PL==1) SCORE_1++;
 			  else SCORE_2++;
+			  Show_Box(i,j,PL,L_A,ALGO);
+			  Box_Sound(PL);
 		      }
 		  }
 		  //--------------------ALGO__DLU--------------------------
+		  ALGO=DLU;
 		  y=Y+50;
 		  flag=OFF;
 
@@ -303,6 +339,8 @@ int Check_For_Box(int X,int Y,int PL,char L_A)
 			   Is_Box=ON;
 			   if(PL==1) SCORE_1++;
 			   else SCORE_2++;
+			   Show_Box(i,j,PL,L_A,ALGO);
+			   Box_Sound(PL);
 		       }
 		  }
 
@@ -310,6 +348,7 @@ int Check_For_Box(int X,int Y,int PL,char L_A)
      else{  // VERTICAL Line case... apply algos RUL & LUR
 
 	    //---------------------ALGO__RUL-----------------
+	    ALGO=RUL;
 	    x=X+50;
 	    i=(Y-100)/50;
 	    j=(X-100)/50;
@@ -333,10 +372,13 @@ int Check_For_Box(int X,int Y,int PL,char L_A)
 			Is_Box=ON;
 			if(PL==1) SCORE_1++;
 			else SCORE_2++;
+			Show_Box(i,j,PL,L_A,ALGO);
+			Box_Sound(PL);
 		  }
 	    }
 
 	    // ----------------------------ALGO__LUR-----------------------
+	    ALGO=LUR;
 	    x=X-50;
 	    flag=OFF;
 	    if(x>=100)
@@ -359,11 +401,46 @@ int Check_For_Box(int X,int Y,int PL,char L_A)
 		      Is_Box=ON;
 		      if(PL==1) SCORE_1++;
 		      else SCORE_2++;
+		      Show_Box(i,j,PL,L_A,ALGO);
+		      Box_Sound(PL);
 		   }
 	    }
 	 }
      return(Is_Box);
 }
+
+int Check_Vertex_For_X1_Y1(int X1,int Y1)
+{
+    int i,j,VERTEX_STAT=OFF;
+    i=(Y1-100)/50;
+    j=(X1-100)/50;
+
+    // Check for Upper VERTICAL Line.
+    if((i-1)>=0)
+    {
+	 if(VERT_LINE[i-1][j]==LINE_DRAWN)
+	   VERTEX_STAT=ON;
+    }
+    else VERTEX_STAT=ON;//This else clause removes i=0 rows' vertex problem.
+
+    // Check for Lower VERTICAL Line.
+    if((i+1)<=4 && VERTEX_STAT==ON)
+      if(VERT_LINE[i][j]==NO_LINE)
+	VERTEX_STAT=OFF;
+
+    // Check for Left HORIZONTAL Line.
+    if((j-1)>=0 && VERTEX_STAT==ON)
+      if(HORIZ_LINE[i][j-1]==NO_LINE)
+	VERTEX_STAT=OFF;
+
+    // Check for Right HORIZONTAL Line.
+    if((j+1)<=7 && VERTEX_STAT==ON)
+      if(HORIZ_LINE[i][j]==NO_LINE)
+	VERTEX_STAT=OFF;
+
+    return(VERTEX_STAT);
+}
+
 
 int Check_Win(void)
 {
@@ -389,14 +466,29 @@ int Check_Win(void)
 void End_Game(void)
 {
      closegraph();
-     printf("\n\n\t\tSCORE of PLAYER_1: %d",SCORE_1);
-     printf("\n\n\t\tSCORE of PLAYER_2: %d",SCORE_2);
+     textcolor(GREEN);
+     printf("\n\n\n\n\n\t\t\t  ");
+     cprintf("Score of PLAYER_1: %d",SCORE_1);
+     textcolor(BROWN);
+     printf("\n\n\t\t\t  ");
+     cprintf("Score of PLAYER_2: %d",SCORE_2);
+     printf("\n\n\n\n\t\t\t  ");
      if(SCORE_1>SCORE_2)
-     printf("\n\n\t\tPLAYER 1 WINS!!!");
+     {
+	textcolor(GREEN);
+	cprintf("PLAYER 1 WINS!!!");
+     }
      else if(SCORE_1==SCORE_2)
-     printf("\n\n\t\tMATCH TIED...");
-     else printf("\n\n\t\tPLAYER_2 WINS!!!");
-     printf("\n\tPRESS ANY KEY...");
+     {
+	textcolor(YELLOW);
+	cprintf("MATCH TIED...");
+     }
+     else {
+	      textcolor(BROWN);
+	      cprintf("PLAYER_2 WINS!!!");
+	  }
+     _setcursortype(_NOCURSOR);
+     printf("\n\n\n\n\t\t\t  PRESS ANY KEY...");
      getch();
 }
 
@@ -406,21 +498,33 @@ void HIDE_PREV_POS(int I,int J)
    fillellipse(100+50*J,100+50*I,5,5);
 }
 
-void SHOW_CURRENT_POS(int X,int Y,int CL)
+void SHOW_CURRENT_POS(int X,int Y,int CL,int CHK_X1_Y1)
 {
     static int i=0,j=0;
-    HIDE_PREV_POS(i,j);
+
+    //Hide Previous position.
+      HIDE_PREV_POS(i,j);
+
+    //Redraw selected/highlighted first coordinate if erased & if valid.
+    if( (100+50*j)==ODD_STAT_X && (100+50*i)==ODD_STAT_Y && CHK_X1_Y1==OFF)
+    {
+	  setfillstyle(SOLID_FILL,CL);
+	  fillellipse(ODD_STAT_X,ODD_STAT_Y,5,5);
+	  setcolor(WHITE);
+    }
+
+    //Show the current position/coordinates.
     i=(Y-100)/50;
     j=(X-100)/50;
     setfillstyle(SOLID_FILL,CL);
-    fillellipse(100+50*j,100+50*i,3,3);
+    fillellipse(100+50*j,100+50*i,5,5);
 }
 
 void Highlight_Selected_Vertex(int x,int y,int cl)
 {
     setcolor(cl);
     setfillstyle(SOLID_FILL,cl);
-    fillellipse(x,y,6,6);
+    fillellipse(x,y,5,5);
 }
 
 void Draw_Line(int x1,int y1,int x2,int y2,int cl)
@@ -452,7 +556,9 @@ void Play_Area(void)
 
     /*-----------------------Game's Name at the top-----------------------*/
     setcolor(BROWN);
-    outtextxy(75,30,"VERTEX RELOADED");
+    outtextxy(75,30,"VORTEX");
+    setcolor(GREEN);
+    outtextxy(265,30,"RELOADED");
 
     /*-----------------------Game's Control Box----------------------------*/
     setcolor(BROWN);
@@ -473,17 +579,122 @@ void Play_Area(void)
     setcolor(LIGHTGRAY);
     outtextxy(510,230,"Game Progress");
     outtextxy(510,240,"-------------");
+    setcolor(GREEN);
     outtextxy(490,260,"Player 1:");
-    //itoa(SCORE_1,SC1,10);
+    setcolor(BROWN);
     outtextxy(490,280,"Player 2:");
 
     /*---------------------------Game Message/Status Box-------------------*/
-
-    setcolor(BROWN);
     rectangle(480,360,638,460);
 
     setcolor(LIGHTGRAY);
     outtextxy(510,370,"Game Status");
     outtextxy(510,380,"-----------");
     setcolor(WHITE);
+}
+
+void Show_Score(void)
+{
+     char*s1,*s2;
+     itoa(SCORE_1,s1,10);
+     itoa(SCORE_2,s2,10);
+     setfillstyle(SOLID_FILL,BLACK);
+     bar(563,258,630,290);
+     settextstyle(DEFAULT_FONT,HORIZ_DIR,1);
+     setcolor(DARKGRAY);
+     outtextxy(565,260,s1);
+     outtextxy(585,260,"boxes.");
+     outtextxy(565,280,s2);
+     outtextxy(585,280,"boxes.");
+}
+
+void Whose_Turn(int P)
+{
+     setfillstyle(SOLID_FILL,BLACK);
+     bar(484,398,635,430);
+     if(P==1)
+     {
+	setcolor(GREEN);
+	outtextxy(495,400,"Player 1's turn.");
+     }
+     else {
+	      setcolor(BROWN);
+	      outtextxy(495,400,"Player 2's turn.");
+	  }
+    if(SCORE_1>SCORE_2)
+    {
+	 setcolor(GREEN);
+	 outtextxy(484,420,"Player 1 is leading");
+    }
+    else if(SCORE_1==SCORE_2)
+    {
+	 setcolor(DARKGRAY);
+	 outtextxy(484,420,"Heading towards tie");
+    }
+    else
+    {
+	 setcolor(BROWN);
+	 outtextxy(484,420,"Player 2 is leading");
+    }
+    setcolor(WHITE);
+}
+
+void Show_Box(int I,int J,int Player,int L_A,int algo)
+{
+    int x,y,Color;
+    x=100+50*J;
+    y=100+50*I;
+    if(Player==1) Color=GREEN;
+    else Color=BROWN;
+
+    settextstyle(GOTHIC_FONT,HORIZ_DIR,3);
+    setcolor(Color);
+
+    if(L_A==HORIZONTAL)
+    {
+       if(algo==ULD)
+       {
+	  x-=30;
+	  y-=30;
+       }
+       else if(algo==DLU)
+       {
+	  x-=30;
+	  y+=20;
+       }
+    }
+    if(L_A==VERTICAL)
+    {
+       if(algo==RUL)
+       {
+	  x+=20;
+	  y-=30;
+       }
+       else if(algo==LUR)
+       {
+	  x-=30;
+	  y-=30;
+       }
+    }
+    if(Player==1)
+      outtextxy(x,y,"1");
+    else outtextxy(x,y,"2");
+}
+
+void Box_Sound(int PL)
+{
+    int i;
+    if(PL==1)
+	 for(i=200;i<=1000;i=i+20)
+	 {
+	     sound(i);
+	     delay(25);
+	 }
+
+    else for(i=1000;i>=200;i=i-20)
+	 {
+	     sound(i);
+	     delay(25);
+	 }
+    nosound();
 }
